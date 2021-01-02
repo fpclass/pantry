@@ -78,26 +78,27 @@ withWriteLock
   -> Path Abs File -- ^ SQLite database file
   -> RIO env a
   -> RIO env a
-withWriteLock desc dbFile inner = do
-  let lockFile = toFilePath dbFile ++ ".pantry-write-lock"
-  withRunInIO $ \run -> do
-    mres <- withTryFileLock lockFile Exclusive $ const $ run inner
-    case mres of
-      Just res -> pure res
-      Nothing -> do
-        let complainer :: Companion IO
-            complainer delay = run $ do
-              -- Wait five seconds before giving the first message to
-              -- avoid spamming the user for uninteresting file locks
-              delay $ 5 * 1000 * 1000 -- 5 seconds
-              logInfo $ "Unable to get a write lock on the " <> desc <> " database, waiting..."
+withWriteLock desc dbFile inner = inner
+  
+  -- let lockFile = toFilePath dbFile ++ ".pantry-write-lock"
+  -- withRunInIO $ \run -> do
+  --   mres <- withTryFileLock lockFile Exclusive $ const $ run inner
+  --   case mres of
+  --     Just res -> pure res
+  --     Nothing -> do
+  --       let complainer :: Companion IO
+  --           complainer delay = run $ do
+  --             -- Wait five seconds before giving the first message to
+  --             -- avoid spamming the user for uninteresting file locks
+  --             delay $ 5 * 1000 * 1000 -- 5 seconds
+  --             logInfo $ "Unable to get a write lock on the " <> desc <> " database, waiting..."
 
-              -- Now loop printing a message every 1 minute
-              forever $ do
-                delay (60 * 1000 * 1000) -- 1 minute
-                  `onCompanionDone` logInfo ("Acquired the " <> desc <> " database write lock")
-                logWarn ("Still waiting on the " <> desc <> " database write lock...")
-        withCompanion complainer $ \stopComplaining ->
-          withFileLock lockFile Exclusive $ const $ do
-            stopComplaining
-            run inner
+  --             -- Now loop printing a message every 1 minute
+  --             forever $ do
+  --               delay (60 * 1000 * 1000) -- 1 minute
+  --                 `onCompanionDone` logInfo ("Acquired the " <> desc <> " database write lock")
+  --               logWarn ("Still waiting on the " <> desc <> " database write lock...")
+  --       withCompanion complainer $ \stopComplaining ->
+  --         withFileLock lockFile Exclusive $ const $ do
+  --           stopComplaining
+  --           run inner
